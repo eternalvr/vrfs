@@ -1,0 +1,11 @@
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\bin\Debug\VRFSConnect.exe.config
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\bin\Debug\VRFSConnect.exe
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\bin\Debug\VRFSConnect.pdb
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\bin\Debug\FSUIPCClient.dll
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\bin\Debug\FSUIPCClient.xml
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\obj\Debug\VRFSConnect.csprojResolveAssemblyReference.cache
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\obj\Debug\VRFSConnect.Form1.resources
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\obj\Debug\VRFSConnect.Properties.Resources.resources
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\obj\Debug\VRFSConnect.csproj.GenerateResource.Cache
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\obj\Debug\VRFSConnect.exe
+c:\users\v_000\documents\visual studio 2015\Projects\VRFSConnect\VRFSConnect\obj\Debug\VRFSConnect.pdb
