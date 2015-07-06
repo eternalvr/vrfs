@@ -11,6 +11,12 @@ const int SwitchColumns = 4;
 const int SwitchRows = 4;
 const byte SwitchInput[SwitchColumns] = {23, 25, 28, 27}; //array of pins used as output for SwitchRows of keypad
 const byte SwitchOutput[SwitchRows] = {22, 24, 29, 26};
+bool NAVStandbyMode = false;
+bool AMMode = false;
+
+byte NAVBits = 0;
+byte AMBits = 0;
+
 int h, v;
 
 // ACTIVE LED
@@ -61,8 +67,8 @@ bool CTSLeft = false;
 String c1 = ""; // COM1
 String c1s = ""; //COM1 Standby
 
-String n1 = ""; // NAV1
-String n1s = ""; //NAV1 Standby
+String n1 = ""; // ILS
+String n1s = ""; //ILS Standby
 
 String adf = ""; // ADF
 
@@ -79,6 +85,13 @@ typedef struct {
   int pinB;
   String FrequencyActive;
   String FrequencyStandby;
+  int FirstMin;
+  int FirstMax;
+  int FirstInc;
+  int SecondMin;
+  int SecondMax;
+  int SecondInc;
+  int MinDecimals;
 
 } RMode;
 int modeCount = 12;
@@ -86,18 +99,18 @@ RadioMode currentMode = BFO;
 RadioMode previousMode = BFO;
 
 RMode modeData[12] = {
-  { VHF1, 2 << 1, 0, "118.125", "119.250"},
-  { VHF2, 2 << 3, 0, "119.000", "124.475"},
-  { VHF3, 2 << 6, 0, "121.500", "134.230"},
-  { HF1, 2 << 4, 0, "7.160", "2.800"},
-  { HF2, 2 << 2, 0, "12.300", "25.150"},
-  { AM, 2 << 5, 0, "1000", "840"},
-  { NAV, 0, 2 << 1, "110.550", "112.500"},
-  { VOR, 0, 2 << 2, "110.550", "118.110"},
-  { ILS, 0, 2 << 3, "109.550", "112.230"},
-  { MLS, 0, 2 << 5, "100.400", "114.500"},
-  { ADF, 0, 2 << 4, "284.0", "330.0"},
-  { BFO, 0, 2 << 0, "382.0", "310.5"},
+  { VHF1, 2 << 1, 0, "118.125", "119.250", 118, 136, 1, 0, 975, 25, 3},
+  { VHF2, 2 << 3, 0, "119.000", "124.475", 118, 136, 1, 0, 975, 25, 3},
+  { VHF3, 2 << 6, 0, "121.500", "134.230", 118, 136, 1, 0, 975, 25, 3},
+  { HF1, 2 << 4, 0, "7.160", "2.800", 2, 23, 1, 0, 999, 1, 3},
+  { HF2, 2 << 2, 0, "12.300", "25.150", 2, 23, 1, 0, 999, 1,3},
+  { AM, 2 << 5, 0, "1000", "840",0},
+  { NAV, 0, 2 << 1, "110.55", "112.50", 108, 111, 1, 0, 95, 5,0},
+  { VOR, 0, 2 << 2, "110.55", "118.05", 108, 117, 1, 0, 95, 5,2},
+  { ILS, 0, 2 << 3, "109.55", "112.00", 108, 111, 1, 0, 95, 5,2},
+  { MLS, 0, 2 << 5, "5031", "5091", 5031, 5091, 1, 0, 0, 0,0},
+  { ADF, 0, 2 << 4, "284", "330", 190, 1750, 1, 0, 0, 0,0},
+  { BFO, 0, 2 << 0, "382", "310", 190, 1750, 1, 0, 0, 0,0},
 };
 
 byte data;
@@ -148,12 +161,11 @@ void loop() {
 
 void SendSerialData()
 {
-  if(millis() > SerialLastTransmission + SerialTransmitEvery) {
+  if (millis() > SerialLastTransmission + SerialTransmitEvery) {
     String serialString = "$C" + modeData[VHF1].FrequencyActive + "|" + modeData[VHF1].FrequencyStandby + ";";
-    serialString += "N" + modeData[NAV].FrequencyActive + "|" + modeData[NAV].FrequencyStandby + ";";
+    serialString += "I" + modeData[ILS].FrequencyActive + "|" + modeData[ILS].FrequencyStandby + ";";
     serialString += "A" + modeData[ADF].FrequencyActive + ";";
     SerialLastTransmission = millis();
-    Serial.println(serialString);
   }
 }
 
@@ -192,9 +204,20 @@ void initLEDs()
 void SetStandByValue(String val)
 {
   StandbyLEDValue = val;
-  val.replace(".", "");
-  StandbyLEDValueA = atoi(val.substring(0, 3).c_str());
-  StandbyLEDValueB = atoi(val.substring(3, 6).c_str());
+  int io = val.indexOf('.');
+  if (io == -1) {
+    StandbyLEDValueA = atoi(val.c_str());
+    StandbyLEDValueB = -999;
+  } else {
+    StandbyLEDValueA = atoi(val.substring(0, io).c_str());
+    StandbyLEDValueB = atoi(val.substring(io + 1).c_str());
+  }
+
+
+
+  //val.replace(".", "");
+  //StandbyLEDValueA = atoi(val.substring(0, 3).c_str());
+  //StandbyLEDValueB = atoi(val.substring(3, 6).c_str());
 }
 
 
@@ -269,35 +292,21 @@ void loopMiscSwitches()
 
 void LEDstep( bool up)
 {
-  switch (currentMode) {
-    case VHF1:
-      if (CTSLeft) {
-        StandbyLEDValueA += (up) ? 1 : -1;
 
-        if (StandbyLEDValueA > 136) {
-          StandbyLEDValueA = 118;
-        }
-        if (StandbyLEDValueA < 118) {
-          StandbyLEDValueB = 136;
-        }
-      } else {
-
-        StandbyLEDValueB += (up) ? 25 : -25;
-
-        if (StandbyLEDValueB > 999) {
-          StandbyLEDValueB = 0;
-        }
-        if (StandbyLEDValueB < 0) {
-          StandbyLEDValueB = 975;
-        }
-      }
-
-      StandbyUpdateLocked = millis();
-      
-      modeData[currentMode].FrequencyStandby = formatVHF();
-      SetStandByValue(modeData[currentMode].FrequencyStandby);
-      break;
+  if(CTSLeft){
+    StandbyLEDValueA += (up) ? modeData[currentMode].FirstInc : -modeData[currentMode].FirstInc;
+    if(StandbyLEDValueA > modeData[currentMode].FirstMax) StandbyLEDValueA = modeData[currentMode].FirstMin;
+    if(StandbyLEDValueA < modeData[currentMode].FirstMin) StandbyLEDValueA = modeData[currentMode].FirstMax;
+  } else {
+    StandbyLEDValueB += (up) ? modeData[currentMode].SecondInc : -modeData[currentMode].SecondInc;
+    if(StandbyLEDValueB > modeData[currentMode].SecondMax) StandbyLEDValueB = modeData[currentMode].SecondMin;
+    if(StandbyLEDValueB < modeData[currentMode].SecondMin) StandbyLEDValueB = modeData[currentMode].SecondMax;
   }
+  StandbyUpdateLocked = millis();
+  
+  modeData[currentMode].FrequencyStandby = formatGeneric(modeData[currentMode].MinDecimals);
+  SetStandByValue(modeData[currentMode].FrequencyStandby);
+      
 }
 String formatVHF()
 {
@@ -309,6 +318,20 @@ String formatVHF()
     f += "0";
   }
   f += String(StandbyLEDValueB);
+  return f;
+}
+String formatGeneric(int minDec)
+{
+  if (StandbyLEDValueB == -999) {
+    return String(StandbyLEDValueA);
+  }
+  String bValue = String(StandbyLEDValueB);
+
+  while (bValue.length() < minDec) {
+    bValue += "0";
+  }
+  String f = String(StandbyLEDValueA) + ".";
+  f += bValue;
   return f;
 }
 
@@ -458,12 +481,15 @@ void loopModeSwitches()
   {
     case 0:
       currentMode = VHF1;
+      NAVStandbyMode = false;
       break;
     case 4:
       currentMode = VHF2;
+      NAVStandbyMode = false;
       break;
     case 8:
       currentMode = VHF3;
+      NAVStandbyMode = false;
       break;
     case 12:
       StandbyUpdateLocked = millis();
@@ -472,40 +498,52 @@ void loopModeSwitches()
       modeData[currentMode].FrequencyStandby = mSave;
 
       SetStandByValue(mSave);
-      
+
       break;
     case 1:
       currentMode = HF1;
+      NAVStandbyMode = false;
       break;
     case 9:
       currentMode = HF2;
+      NAVStandbyMode = false;
       break;
     case 13:
-      currentMode = AM;
+      if (currentMode == HF1 || currentMode == HF2) {
+        AMMode = !AMMode;
+      }
       break;
     case 2:
-      currentMode = NAV;
+      NAVStandbyMode = !NAVStandbyMode;
+      if (currentMode == VOR || currentMode == ILS || currentMode == MLS || currentMode == ADF || currentMode == BFO) {
+        currentMode = VHF1;
+      }
       break;
     case 6:
-      currentMode = VOR;
+
+      currentMode = (NAVStandbyMode) ? VOR : currentMode;
       break;
     case 10:
-      currentMode = ILS;
+      currentMode = (NAVStandbyMode) ? ILS : currentMode;
       break;
     case 14:
-      currentMode = MLS;
+      currentMode = (NAVStandbyMode) ? MLS : currentMode;
       break;
     case 11:
-      currentMode = ADF;
+      currentMode = (NAVStandbyMode) ? ADF : currentMode;
       break;
     case 15:
-      currentMode = BFO;
+      currentMode = (NAVStandbyMode) ? BFO : currentMode;
       break;
   }
 
   //if (previousMode == currentMode) {
   //  return;
   //}
+
+  if (currentMode != HF1 && currentMode != HF2) {
+    AMMode = false;
+  }
   previousMode = currentMode;
 
   ActiveLEDValue = modeData[currentMode].FrequencyActive;
@@ -578,8 +616,12 @@ void setupStatusLED() {
 
 void StatusLEDloop() {
   digitalWrite(StatusLED_LATCH, 0);
-  shiftOut(StatusLED_DATA, StatusLED_CLOCK, modeData[currentMode].pinA);
-  shiftOut(StatusLED_DATA, StatusLED_CLOCK, modeData[currentMode].pinB);
+  NAVBits = (NAVStandbyMode) ? 1 << 2 : 0;
+  AMBits = (AMMode) ? 2 << 5 : 0;
+
+  shiftOut(StatusLED_DATA, StatusLED_CLOCK, modeData[currentMode].pinA | AMBits);
+  shiftOut(StatusLED_DATA, StatusLED_CLOCK, modeData[currentMode].pinB | NAVBits);
+
   digitalWrite(StatusLED_LATCH, 1);
 }
 
@@ -667,29 +709,29 @@ void tryReadSerial()
   if (Serial.available() > 0)
   {
     byte c = Serial.read();
-   
+
     PacketBuffer[SerialDataCount] = (char)c;
-    
+
     SerialDataCount++;
     //int num = Serial.readBytesUntil(';', PacketBuffer, 50);
-    
+
     if (c == ';') {
-      
-          
+
+
       if (SerialDataCount > 0 )
       {
         PacketString = String(PacketBuffer);
         PacketString.trim();
         int pipePos = PacketString.indexOf('|');
-        
+
         switch (PacketBuffer[0])
         {
           case 'C':
-            
+
             c1 = ConvertRadioString(PacketString.substring(1, pipePos));
-            c1s = ConvertRadioString(PacketString.substring(pipePos+1, PacketString.indexOf(';')));
-            
-            if( millis() > StandbyUpdateLocked + StandbyLockedTime) {
+            c1s = ConvertRadioString(PacketString.substring(pipePos + 1, PacketString.indexOf(';')));
+
+            if ( millis() > StandbyUpdateLocked + StandbyLockedTime) {
               modeData[VHF1].FrequencyStandby = c1s;
               modeData[VHF1].FrequencyActive = c1;
               SetStandByValue(modeData[VHF1].FrequencyStandby);
@@ -700,11 +742,11 @@ void tryReadSerial()
           case 'N':
             n1 = PacketString.substring(1, pipePos);
 
-            n1s = PacketString.substring(pipePos+1, PacketString.indexOf(';'));
-            
-            if( millis() > StandbyUpdateLocked + StandbyLockedTime) {
-              modeData[NAV].FrequencyActive = n1;
-              modeData[NAV].FrequencyStandby = n1s;
+            n1s = PacketString.substring(pipePos + 1, PacketString.indexOf(';'));
+
+            if ( millis() > StandbyUpdateLocked + StandbyLockedTime) {
+              modeData[ILS].FrequencyActive = n1;
+              modeData[ILS].FrequencyStandby = n1s;
               SetStandByValue(modeData[VHF1].FrequencyStandby);
             }
             break;
@@ -713,9 +755,9 @@ void tryReadSerial()
             modeData[ADF].FrequencyActive = adf;
             break;
         }
-        for( int i = 0; i < sizeof(PacketBuffer);i++)
+        for ( int i = 0; i < sizeof(PacketBuffer); i++)
           PacketBuffer[i] = (char)0;
-          
+
         SerialDataCount = 0;
 
       }
