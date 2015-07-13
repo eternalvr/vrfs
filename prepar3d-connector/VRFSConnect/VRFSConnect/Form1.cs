@@ -75,7 +75,7 @@ namespace VRFSConnect
             {
                 nav1s = "0" + nav1s;
             }
-            s += "N1" + nav1s.Substring(0, 2) + "." + nav1s.Substring(2, 2) + "|";
+            s += "I1" + nav1s.Substring(0, 2) + "." + nav1s.Substring(2, 2) + "|";
             string nav1sb = nav1standby.Value.ToString("X");
             s += "1" + nav1sb.Substring(0, 2) + "." + nav1sb.Substring(2, 2) + ";";
 
@@ -168,7 +168,7 @@ namespace VRFSConnect
                                 com1standby.Value = (short)s;
                                 FSUIPCConnection.Process();
                                 break;
-                            case 'N':
+                            case 'I':
 
                                 if (pipePos == -1) continue;
                                 
@@ -186,13 +186,140 @@ namespace VRFSConnect
 
 
                     }
+                    
 
 
                 }
-                txtSerialOut.Text += ReceivedData;
-                txtSerialOut.SelectionStart = txtSerialOut.TextLength;
-                txtSerialOut.ScrollToCaret();
+                while (ReceivedData.Length != 0)
+                {
+                    if (ReceivedData.StartsWith("!")) // mcdu
+                    {
+                        ReceivedData = ReceivedData.Substring(1);
+                        if(ReceivedData.Length == 0)
+                        {
+                            return;
+                        }
+                        char r = ReceivedData[0];
+                        if (r != 0)
+                        {
+                            Offset<short> b = new Offset<short>(0x78EC, true);
+                            if (r >= 49 && r <= 63)
+                            {
+                                b.Value = (short)(r - 49 + 28);
+                            }
+                            if (r >= 64 && r <= 90)
+                            {
+                                b.Value = (short)(r - 64);
+
+                            }
+
+                            if (r >= 18 && r < 30) // LSK1-6
+                            {
+                                b.Value = (short)(r + 20);
+                            }
+                            
+
+                            switch ((int)r)
+                            {
+                                case 17:
+                                    b.Value = 50; //CLR
+                                    break;
+                                case 48:
+                                    b.Value = 27; // 0
+                                    break;
+                                case 16:
+                                    b.Value = 51; //OVFY
+                                    break;
+                                case 1:
+                                    b.Value = 56; //DIR
+                                    break;
+                                case 2:
+                                    b.Value = 57; //PROG
+                                    break;
+                                case 3:
+                                    b.Value = 58; //PERF
+                                    break;
+                                case 4:
+                                    b.Value = 59; //INIT
+                                    break;
+                                case 5:
+                                    b.Value = 60; //DATA
+                                    break;
+                                case 6:
+                                    b.Value = 61; //FPLN
+                                    break;
+                                case 7:
+                                    b.Value = 62; //RADNAV
+                                    break;
+                                case 8:
+                                    b.Value = 63; //FUELPRED
+                                    break;
+                                case 9:
+                                    b.Value = 64; //SECFLPN
+                                    break;
+                                case 11:
+                                    b.Value = 65; //MCDUMENU
+                                    break;
+                                case 12:
+                                    b.Value = 66; //AIRPORT
+                                    break;
+                                case 30:
+                                    b.Value = 69; //UP
+                                    break;
+                                case 14:
+                                    b.Value = 70; //DOWN
+                                    break;
+                                case 15:
+                                    b.Value = 68; //RIGHT/NEXTPAGE
+                                    break;
+                                case 46:
+                                    b.Value = 55; // POINT
+                                    break;
+                                case 47:
+                                    b.Value = 53; // SLASH
+                                    break;
+                                case 43:
+                                    b.Value = 54; // PLUS
+                                    break;
+                                case 45:
+                                    b.Value = 52; // SPACE
+                                    break;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                            }
+                            AddText(b.Value.ToString());
+                            FSUIPCConnection.Process();
+                        }
+                    } else
+                    {
+                        ReceivedData = ReceivedData.Substring(1);
+                    }
+                }
+                AddText(ReceivedData);
+            
             }
+        }
+        public void AddText(String text)
+        {
+            txtSerialOut.Text += text;
+            txtSerialOut.SelectionStart = txtSerialOut.TextLength;
+            txtSerialOut.ScrollToCaret();
         }
         public static byte[] ToBcd(int value)
         {
