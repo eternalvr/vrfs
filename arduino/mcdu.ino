@@ -1,4 +1,5 @@
 #include <Keypad.h>
+#include <SimpleTimer.h>
 #define DIR 1
 #define PROG 2
 #define PERF 3
@@ -9,7 +10,7 @@
 #define FUELPRED 8
 #define SECFLPN 9
 #define FIX 10
-#define MCDUMENU 11
+#define MCDUMENU 31
 #define AIRPORT 12
 #define UP 30
 #define DOWN 14
@@ -28,6 +29,11 @@
 #define LSK4R 27
 #define LSK5R 28
 #define LSK6R 29
+
+#define IDENTIFY_AS "MCDU"
+#define IDENTIFY_INTERVAL 8000
+SimpleTimer IdentifyTimer;
+
 
 int BGLights[] = { 0, 1,2,3,4,5,6,7 };
 byte h=0,v=0;    //variables used in for loops
@@ -57,15 +63,23 @@ void setup() {
     digitalWrite(BGLights[i], HIGH);
   }
   Serial.begin(9600); //to use serial monitor we set the buad rate
-
+  IdentifyTimer.setInterval(IDENTIFY_INTERVAL, TimerIdentify);
+  TimerIdentify();
 }
-
+void TimerIdentify()
+{
+ Serial.write("_!");
+ Serial.write(IDENTIFY_AS);
+ Serial.write("!_"); 
+}
 void loop() {
   char key = kpd.getKey();
   if(key != NO_KEY) {
     Serial.print("!");
-    Serial.println(key);
+    Serial.print(key);
+    Serial.print("#");
   }
+  IdentifyTimer.run();
   //int c = keypad();
  /* if(c != 50)
   {
@@ -73,50 +87,4 @@ void loop() {
   }*/
   
 
-}
-
-byte keypad() // function used to detect which button is used 
-{
- static bool no_press_flag=0;  //static flag used to ensure no button is pressed 
-  for(byte x=0;x<columns;x++)   // for loop used to read all inputs of keypad to ensure no button is pressed 
-  {
- Serial.print(digitalRead(Input[x]));
-     
-     if (digitalRead(Input[x])==HIGH);   //read evry input if high continue else break;
-     else
-     break;
-     if(x==(columns-1))   //if no button is pressed 
-     {
-      no_press_flag=1;
-      h=0;
-      v=0;
-     }
-  }
-  Serial.println();
-  if(no_press_flag==1) //if no button is pressed 
-  {
-    for(byte r=0;r<rows;r++) //for loop used to make all output as low
-    digitalWrite(Output[r],LOW);
-    
-    for(h=0;h<columns;h++)  // for loop to check if one of inputs is low
-    {
-      if(digitalRead(Input[h])==HIGH) //if specific input is remain high (no press on it) continue
-      continue;
-      else    //if one of inputs is low
-      {
-          for (v=0;v<rows;v++)   //for loop used to specify the number of row
-          {
-          digitalWrite(Output[v],HIGH);   //make specified output as HIGH
-          if(digitalRead(Input[h])==HIGH)  //if the input that selected from first sor loop is change to high
-          {
-            no_press_flag=0;                //reset the no press flag;
-            for(byte w=0;w<rows;w++) // make all outputs as low
-            digitalWrite(Output[w],LOW);
-            return v*4+h;  //return number of button 
-          }
-          }
-      }
-    }
-  }
- return 50;
 }

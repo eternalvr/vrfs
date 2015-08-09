@@ -1,4 +1,4 @@
-
+#include <SimpleTimer.h>
 // PINS
 
 ////STATUS LEDS
@@ -119,6 +119,12 @@ bool serialDataReceived = false;
 byte SerialDataCount = 0;
 unsigned long SerialLastTransmission = 0;
 unsigned long SerialTransmitEvery = 1000;
+
+#define IDENTIFY_AS "RMP"
+#define IDENTIFY_INTERVAL 8000
+SimpleTimer IdentifyTimer;
+
+
 void setup() {
 
 
@@ -138,8 +144,16 @@ void setup() {
   SetStandByValue(modeData[currentMode].FrequencyStandby);
   ctsprev = digitalRead(SwitchCTSChange);
 
-}
+  IdentifyTimer.setInterval(IDENTIFY_INTERVAL, TimerIdentify);
+  TimerIdentify();
 
+}
+void TimerIdentify()
+{
+ Serial.write("_!");
+ Serial.write(IDENTIFY_AS);
+ Serial.write("!_"); 
+}
 void loop() {
 
   tryReadSerial();
@@ -151,6 +165,7 @@ void loop() {
     loopMiscSwitches();
 
     SendSerialData();
+    IdentifyTimer.run();
   } else
   {
     resetAll();
@@ -165,7 +180,9 @@ void SendSerialData()
     String serialString = "$C" + modeData[VHF1].FrequencyActive + "|" + modeData[VHF1].FrequencyStandby + ";";
     serialString += "I" + modeData[ILS].FrequencyActive + "|" + modeData[ILS].FrequencyStandby + ";";
     serialString += "A" + modeData[ADF].FrequencyActive + ";";
+    serialString += "#";
     SerialLastTransmission = millis();
+    Serial.print(serialString);
   }
 }
 
@@ -472,7 +489,7 @@ void loopModeSwitches()
     return;
   }
 
-  Serial.println(c);
+  
 
   String mSave;
 
