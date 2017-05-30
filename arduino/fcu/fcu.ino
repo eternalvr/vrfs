@@ -1,4 +1,4 @@
-A320 FCU Arduino 
+/** A320 FCU Arduino 
 Copyright (C) 2017  Volker Richter <v[a]vrmx.eu>
 
 This file is part of FCU.
@@ -15,6 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with FCU.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <SimpleTimer.h>
 #include <Button.h>
