@@ -32,6 +32,19 @@
 
 #define IDENTIFY_AS "MCDU"
 #define IDENTIFY_INTERVAL 8000
+
+
+#define MAGIC_A 0xFF
+#define MAGIC_B 0xFA
+
+#define RECEIVE_MAGIC_A 0xFF
+#define RECEIVE_MAGIC_B 0xFE
+
+#define DEVICE_ID 3
+
+#define SEND_DATA 1
+
+
 SimpleTimer IdentifyTimer;
 
 
@@ -63,8 +76,8 @@ void setup() {
     digitalWrite(BGLights[i], HIGH);
   }
   Serial.begin(9600); //to use serial monitor we set the buad rate
-  IdentifyTimer.setInterval(IDENTIFY_INTERVAL, TimerIdentify);
-  TimerIdentify();
+  //IdentifyTimer.setInterval(IDENTIFY_INTERVAL, TimerIdentify);
+  //TimerIdentify();
 }
 void TimerIdentify()
 {
@@ -73,13 +86,21 @@ void TimerIdentify()
  Serial.write("!_"); 
 }
 void loop() {
+  if(SEND_DATA == 0) return;
   char key = kpd.getKey();
   if(key != NO_KEY) {
-    Serial.print("!");
-    Serial.print(key);
-    Serial.print("#");
+   Serial.write(MAGIC_A);
+   Serial.write(MAGIC_B);
+   Serial.write(DEVICE_ID);
+
+   byte b[] = {(byte)key};
+   int blen = sizeof(b);
+   Serial.write((byte)blen);
+   Serial.write(b, blen);
+  
+   Serial.flush();
   }
-  IdentifyTimer.run();
+  //IdentifyTimer.run();
   //int c = keypad();
  /* if(c != 50)
   {

@@ -1,4 +1,19 @@
 #include <SimpleTimer.h>
+// FSC CONFIG
+
+
+#define MAGIC_A 0xFF
+#define MAGIC_B 0xFA
+
+#define RECEIVE_MAGIC_A 0xFF
+#define RECEIVE_MAGIC_B 0xFE
+
+#define DEVICE_ID 2
+
+#define SEND_DATA 1
+
+
+
 // PINS
 
 ////STATUS LEDS
@@ -144,8 +159,8 @@ void setup() {
   SetStandByValue(modeData[currentMode].FrequencyStandby);
   ctsprev = digitalRead(SwitchCTSChange);
 
-  IdentifyTimer.setInterval(IDENTIFY_INTERVAL, TimerIdentify);
-  TimerIdentify();
+  //IdentifyTimer.setInterval(IDENTIFY_INTERVAL, TimerIdentify);
+  //TimerIdentify();
 
 }
 void TimerIdentify()
@@ -177,13 +192,33 @@ void loop() {
 void SendSerialData()
 {
   if (millis() > SerialLastTransmission + SerialTransmitEvery) {
+  if(SEND_DATA == 1) {
+  Serial.write(MAGIC_A);
+  Serial.write(MAGIC_B);
+  Serial.write(DEVICE_ID);
+  Serial.write(4);
+  
+  
+    byte twoByteBuffer[2];
+    VHFToBcd(modeData[VHF1].FrequencyActive, twoByteBuffer);
+    Serial.write(twoByteBuffer, 2);
+
+    VHFToBcd(modeData[VHF1].FrequencyStandby, twoByteBuffer);
+    Serial.write(twoByteBuffer, 2);
+    
+    
+    SerialLastTransmission = millis();
+  }
+  }
+  
+  /*if (millis() > SerialLastTransmission + SerialTransmitEvery) {
     String serialString = "$C" + modeData[VHF1].FrequencyActive + "|" + modeData[VHF1].FrequencyStandby + ";";
     serialString += "I" + modeData[ILS].FrequencyActive + "|" + modeData[ILS].FrequencyStandby + ";";
     serialString += "A" + modeData[ADF].FrequencyActive + ";";
     serialString += "#";
     SerialLastTransmission = millis();
     Serial.print(serialString);
-  }
+  }*/
 }
 
 void resetAll()
@@ -721,6 +756,7 @@ void blinkAll_2Bytes(int n, int d) {
 
 void tryReadSerial()
 {
+  return;
   int num = 0;
 
   if (Serial.available() > 0)
@@ -793,7 +829,33 @@ String ConvertRadioString(String r)
     r.concat("0");
   }
   return r;
+}
 
+uint8_t bin2bcd (uint8_t val) { return val + 6 * (val / 10); }
+uint8_t bcd2bin (uint8_t val) { return val - 6 * (val >> 4); }
 
+void VHFToBcd(String s, byte(&rVal)[2] )
+{
+  byte bPos = s.indexOf(".");
+  if(bPos != -1) {
+    s.remove(bPos,1);
+  }
+
+  if(s[0] == '1'){
+    s.remove(0,1);
+  }
+ 
+  String sub1 = s.substring(0, 2);
+  String sub2 = s.substring(2, 4);
+  
+  const char* part1 = sub1.c_str();
+  const char* part2 = sub2.c_str();
+  
+  byte b1 = (byte)atoi(part1);
+  byte b2 = (byte)atoi(part2);
+  
+  rVal[0] = bin2bcd(b1);
+  rVal[1] = bin2bcd(b2); 
+  
 }
 
